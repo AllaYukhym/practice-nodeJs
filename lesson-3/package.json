@@ -1,7 +1,6 @@
 {
   "name": "lesson-3",
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
   "scripts": {
     "server": "cross-env NODE_ENV=development nodemon backend/server.js",
@@ -21,5 +20,7 @@
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^7.0.0",
     "nodemon": "^2.0.21"
-  }
+  },
+  "devDependencies": {},
+  "description": ""
 }
