@@ -1,21 +1,29 @@
-const express = require('express');
-const dotenv = require('dotenv');
-const path = require('path');
-require('colors');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+const express = require("express");
+const dotenv = require("dotenv");
+const path = require("path");
+require("colors");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const { engine } = require("express-handlebars");
 
-const asyncHandler = require('express-async-handler');
+const asyncHandler = require("express-async-handler");
 
-const auth = require('./middleware/auth');
+const auth = require("./middleware/auth");
 
-const connectDB = require('../config/db');
+const connectDB = require("../config/db");
 
-const configPath = path.join(__dirname, '..', 'config', '.env');
+const configPath = path.join(__dirname, "..", "config", ".env");
+const sendEmail = require("./services/sendEmail");
 
 dotenv.config({ path: configPath });
 
 const app = express();
+app.use(express.static("public"));
+
+// set template engine
+app.engine("handlebars", engine());
+app.set("view engine", "handlebars");
+app.set("views", "backend/views");
 
 // console.log(process.env.andrew);
 // console.log(process.env.vova);
@@ -25,10 +33,10 @@ app.use(express.json());
 
 // set Routes
 
-app.use('/api/v1', require('./routes/moviesRoutes'));
+app.use("/api/v1", require("./routes/moviesRoutes"));
 
-const notFound = require('./middleware/notFound');
-const errorHandler = require('./middleware/errorHandler');
+const notFound = require("./middleware/notFound");
+const errorHandler = require("./middleware/errorHandler");
 
 // Регистрация - создание нового пользователя в базе данных
 
@@ -38,11 +46,11 @@ const errorHandler = require('./middleware/errorHandler');
 
 // Logout - exit from system ()
 
-const UserModel = require('./models/usersModel');
-const RoleModel = require('./models/rolesModel');
+const UserModel = require("./models/usersModel");
+const RoleModel = require("./models/rolesModel");
 
 app.post(
-  '/register',
+  "/register",
   asyncHandler(async (req, res) => {
     // req - получаем дынные от пользователя
     // контроллерная валидация данных, если данные не пришли, возвращаем ошибку
@@ -55,24 +63,24 @@ app.post(
 
     if (!email || !password) {
       res.status(400);
-      throw new Error('Provide all required fields');
+      throw new Error("Provide all required fields");
     }
 
     const candidate = await UserModel.findOne({ email });
 
     if (candidate) {
       res.status(400);
-      throw new Error('Email already in use');
+      throw new Error("Email already in use");
     }
 
     const hashPassword = bcrypt.hashSync(password, 5);
 
     if (!hashPassword) {
       res.status(400);
-      throw new Error('Service is out of order, try later');
+      throw new Error("Service is out of order, try later");
     }
 
-    const userRole = await RoleModel.findOne({ value: 'ADMIN' });
+    const userRole = await RoleModel.findOne({ value: "ADMIN" });
 
     const user = await UserModel.create({
       ...req.body,
@@ -82,17 +90,17 @@ app.post(
 
     if (!user) {
       res.status(400);
-      throw new Error('Registration failed, try later');
+      throw new Error("Registration failed, try later");
     }
 
     res.status(201).json({
       code: 201,
-      message: 'Registration success',
+      message: "Registration success",
     });
   })
 );
 app.post(
-  '/login',
+  "/login",
   asyncHandler(async (req, res) => {
     // получаем данные от пользователя
     // контроллерная валидация данных от пользователя, если данные невалидны, возвращаем ошибку
@@ -105,7 +113,7 @@ app.post(
 
     if (!email || !password) {
       res.status(400);
-      throw new Error('Provide all required fields');
+      throw new Error("Provide all required fields");
     }
 
     const user = await UserModel.findOne({ email });
@@ -116,7 +124,7 @@ app.post(
 
     if (!user || !validPassword) {
       res.status(400);
-      throw new Error('Wrong login or password');
+      throw new Error("Wrong login or password");
     }
 
     const token = generateToken({ id: user._id, email: user.email });
@@ -127,7 +135,7 @@ app.post(
 
     if (!userWithToken) {
       res.status(400);
-      throw new Error('Unable to set token');
+      throw new Error("Unable to set token");
     }
 
     res.status(200).json({
@@ -136,12 +144,12 @@ app.post(
         email,
       },
       code: 200,
-      message: 'Login success',
+      message: "Login success",
     });
   })
 );
 app.get(
-  '/logout',
+  "/logout",
   auth,
   asyncHandler(async (req, res) => {
     console.log(req.user);
@@ -151,17 +159,45 @@ app.get(
 
     res.status(200).json({
       code: 200,
-      message: 'Logout success',
+      message: "Logout success",
     });
   })
 );
 
-app.use('*', notFound);
+app.get("/", (req, res) => {
+  res.render("home");
+});
+
+app.get("/about", (req, res) => {
+  res.render("about");
+});
+
+app.get("/contact", (req, res) => {
+  // res.render("contact", { msg: "Contact send succes", user: "Alla" });
+  res.render("contact");
+});
+
+app.post("/send", async (req, res) => {
+  try {
+    // res.send(req.body);
+    res.render("send", {
+      msg: "Contact send succes",
+      user: req.body.userName,
+      email: req.body.userEmail,
+    });
+
+    await sendEmail(req.body);
+  } catch (error) {
+    res.status(400).json({ mesage: error.mesage });
+  }
+});
+
+app.use("*", notFound);
 app.use(errorHandler);
 
 function generateToken(data) {
-  const token = jwt.sign(data, 'pizza', {
-    expiresIn: '8h',
+  const token = jwt.sign(data, "pizza", {
+    expiresIn: "8h",
   });
   return token;
 }
