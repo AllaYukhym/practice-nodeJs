@@ -21,6 +21,7 @@ const app = express();
 app.use(express.static("public"));
 
 // set template engine
+
 app.engine("handlebars", engine());
 app.set("view engine", "handlebars");
 app.set("views", "backend/views");
